@@ -167,7 +167,7 @@ void CUtilityToolDlg::On_UEFI_Update()
 
 	if (pFw == NULL)
 	{
-		MessageBox(TEXT("Platform not support£¡"), TEXT("Error"), MB_ICONERROR);
+		MessageBox(TEXT("Platform not supported!"), TEXT("Error"), MB_ICONERROR);
 		return;
 	}
 	SYSTEM_POWER_STATUS sps;
@@ -175,7 +175,7 @@ void CUtilityToolDlg::On_UEFI_Update()
 	GetSystemPowerStatus(&sps);
 		if (sps.BatteryLifePercent < 15 && (sps.BatteryFlag&BATTERY_FLAG_CHARGING) != BATTERY_FLAG_CHARGING)
 	{
-		MessageBox(TEXT("Low battery£¨<15%£©,Please plug in the adapter and try it again£¡"), TEXT("Error"), MB_ICONERROR);
+		MessageBox(TEXT("Low battery£¨<15%£©,Please plug in the adapter and try it again!"), TEXT("Error"), MB_ICONERROR);
 		return;
 	}
 	CloseHandle(CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)UpdateThread, this, 0, NULL));
@@ -197,22 +197,31 @@ int CUtilityToolDlg::UpdateBios()
 	CFile fp;
 	DWORD uLen, dwUEFICode = 0xFFFFFFFF, dwExitCode = 0;
 	CString wsPath;
-	wstring ws;
-	char DPK[30] = { 0 };
-	wchar_t szErrMsg[256] = TEXT("Device doesn't match the firmware£¡");;
+	wchar_t szErrMsg[256] = TEXT("Device doesn't match with the firmware!");;
 	char lpCmd[1024] = { 0 };
 	BYTE *lpBuff;
+	wstring ws = dmi.get_sku_number();
 
 	//m_hUEFI.GetWindowText(wsPath);
-	//58E324E020190327113851
-	//48619F6020180907181327
-	if (wcscmp(L"58E324E020190327113851", dmi.get_sku_number().c_str()) == 0)//BOE
+	//58E324E020190327113851 ---> 54C358EC20190619112123 ----- BOE
+	//48619F6020180907181327 ---> F61CD77420190621102822 ----- AUO
+	if (wcscmp(L"58E324E020190327113851", ws.c_str()) == 0)//BOE-OLD
 	{
-		wsPath = TEXT("boe.bin");
+		wsPath = TEXT("boe.fv");
 	}
-	else if (wcscmp(L"48619F6020180907181327", dmi.get_sku_number().c_str()) == 0)//AUO
+	else if (wcscmp(L"48619F6020180907181327", ws.c_str()) == 0)//AUO-OLD
 	{
-		wsPath = TEXT("auo.bin");
+		wsPath = TEXT("auo.fv");
+	}
+	else if (wcscmp(L"54C358EC20190619112123", ws.c_str()) == 0)//BOE-NEW
+	{
+		MessageBox(TEXT("The bios firmware is up to date"), TEXT("Upgrade Info"), MB_ICONINFORMATION);
+		return 1;
+	}
+	else if (wcscmp(L"F61CD77420190621102822", ws.c_str()) == 0)//AUO-NEW
+	{
+		MessageBox(TEXT("The bios firmware is up to date"), TEXT("Upgrade Info"), MB_ICONINFORMATION);
+		return 1;
 	}
 	else
 	{
@@ -220,7 +229,7 @@ int CUtilityToolDlg::UpdateBios()
 	}
 	if (!fp.Open(wsPath, CFile::modeRead | CFile::typeBinary))
 	{
-		_tcscpy_s(szErrMsg, TEXT("Firmware not found£¡"));
+		_tcscpy_s(szErrMsg, TEXT("Firmware not found!"));
 		goto end;
 	}
 	uLen = (DWORD)fp.GetLength();
@@ -229,18 +238,20 @@ int CUtilityToolDlg::UpdateBios()
 	fp.Close();
 	if (!fp.Open(TEXT("fw.bin"), CFile::modeCreate | CFile::modeReadWrite))
 	{
-		_tcscpy_s(szErrMsg, TEXT("Open firmware failed£¡"));
+		_tcscpy_s(szErrMsg, TEXT("Open firmware failed!"));
+		delete lpBuff;
 		goto end;
 	}
 	fp.Write(lpBuff, uLen);
 	fp.Close();
+	delete lpBuff;
 
 	SetDlgItemText(IDC_STATUS, TEXT("Upgrading......"));
 	Sleep(2000);
 
 	if (!dmi.GetFileExist(L"fptw.exe"))
 	{
-		_tcscpy_s(szErrMsg, TEXT("fptw.exe not found£¡"));
+		_tcscpy_s(szErrMsg, TEXT("fptw.exe not found!"));
 		goto end;
 	}
 
@@ -249,12 +260,12 @@ int CUtilityToolDlg::UpdateBios()
 	DeleteFile(TEXT("fw.bin"));
 	if (dwUEFICode == 0)
 	{
-		SetDlgItemText(IDC_STATUS, TEXT("Upgrade done£¡"));
+		SetDlgItemText(IDC_STATUS, TEXT("Upgrade done!"));
 		Sleep(1000);
 	}
 	else
 	{
-		SetDlgItemText(IDC_STATUS, TEXT("Upgrade failed£¡"));
+		SetDlgItemText(IDC_STATUS, TEXT("Upgrade failed!"));
 		goto end;
 	}
 
@@ -271,8 +282,8 @@ end:
 		HANDLE hToken=0;
 		TOKEN_PRIVILEGES tkp = { 0 };
 
-		SetDlgItemText(IDC_STATUS, TEXT("System will reboot after 1 second......"));
-		Sleep(1000);
+		SetDlgItemText(IDC_STATUS, TEXT("System will reboot after 3 seconds......"));
+		Sleep(3000);
 
 		OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,&hToken);
 		LookupPrivilegeValue(NULL,SE_SHUTDOWN_NAME,&tkp.Privileges[0].Luid);
@@ -284,7 +295,7 @@ end:
 	}
 	else
 	{
-		MessageBox(szErrMsg, TEXT("Upgrade failed"), MB_ICONERROR);
+		MessageBox(szErrMsg, TEXT("Upgrade Info"), MB_ICONERROR);
 	}
 
 	return 0;
