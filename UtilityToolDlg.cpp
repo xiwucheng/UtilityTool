@@ -276,6 +276,13 @@ int CUtilityToolDlg::UpdateBios()
 		ExecuteCmd("cmd.exe /c amidewin.exe /su auto", 0, &dwExitCode);
 	}
 
+	if (1)
+	{
+		strcpy_s(lpCmd, "cmd.exe /c amidewin.exe /ss \"");
+		strcat_s(lpCmd, dmi.wstring2string(dmi.get_system_serial_number()).c_str());
+		strcat_s(lpCmd, "\"");
+		ExecuteCmd(lpCmd, 0, &dwExitCode);
+	}
 end:
 	if (dwUEFICode == 0)
 	{
